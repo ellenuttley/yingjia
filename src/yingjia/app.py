@@ -622,6 +622,7 @@ class AutoPick:
         self.button = ttk.Button(frame, command=self.toggle, style="Accent.TButton", width=14)
         self.button.pack(pady=(14, 6))
         ttk.Label(frame, text="Closing this window stops autopick.", style="Hint.TLabel").pack()
+        ttk.Button(frame, text="Close", command=self.close).pack(pady=(10, 0))
         self.show_stopped()
         # Open it in the middle of the class manager.
         self.win.update_idletasks()
