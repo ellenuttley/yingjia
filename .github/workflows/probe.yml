@@ -16,3 +16,13 @@ jobs:
         env:
           PYTHONPATH: src
           PYTHONIOENCODING: utf-8
+      - name: full self-test piped
+        run: python -c "import subprocess,sys; r=subprocess.run([sys.executable,'-m','yingjia.selftest'],timeout=120,capture_output=True,text=True,errors='replace'); print(r.stdout[-3000:], r.stderr[-3000:])"
+        env:
+          PYTHONPATH: src
+        continue-on-error: true
+      - name: full self-test direct
+        run: python -m yingjia.selftest
+        timeout-minutes: 4
+        env:
+          PYTHONPATH: src
