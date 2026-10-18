@@ -33,7 +33,9 @@ ShowLanguageDialog=auto
 
 [Languages]
 Name: "en"; MessagesFile: "compiler:Default.isl"
-Name: "zh"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
+; Copied from Inno Setup's own translations, so the build doesn't depend on
+; which languages the installed Inno Setup includes.
+Name: "zh"; MessagesFile: "ChineseSimplified.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"
