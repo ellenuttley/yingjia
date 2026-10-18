@@ -18,9 +18,10 @@ Dark mode: [screenshot-dark.png](screenshot-dark.png)
 - **Pick a name** with the **Tab** key or the dice button, which works well
   on a smart board. Tab works whenever the widget or the class manager is
   the active window (except while typing in a text box).
-- **Auto pick**: in the class manager, set a number of seconds and press
-  "Start auto pick" to show a new name every few seconds. Stop it with the
-  same button or Esc.
+- **Autopick**: the "Autopick…" button in the class manager opens a small
+  window where you set the seconds and press Start/Stop to show a new name
+  every few seconds. Closing that window (or the class manager) always
+  stops it, so it can't be left running by accident.
 - **Fair picking**: by default everyone is picked once before anyone is picked
   again, and nobody comes up twice in a row. Can be switched to pure random.
 - **Class manager** (⚙ button): create, rename, duplicate and delete classes;

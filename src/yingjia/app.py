@@ -339,19 +339,11 @@ class Manager:
 
         btns = ttk.Frame(right)
         btns.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(6, 0))
-        for text, cmd in (("Paste many names…", self.paste_names), ("Rename…", self.rename_student),
-                          ("Remove", self.remove_student), ("Everyone's here", self.all_present)):
+        for text, cmd in (("Paste names…", self.paste_names), ("Rename…", self.rename_student),
+                          ("Remove", self.remove_student), ("Everyone's here", self.all_present),
+                          ("Autopick…", self.open_autopick)):
             ttk.Button(btns, text=text, command=cmd).pack(side="left", padx=(0, 6))
-
-        auto = ttk.Frame(right)
-        auto.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(6, 0))
-        ttk.Label(auto, text="Auto pick a new name every").pack(side="left")
-        self.auto_seconds = tk.IntVar(value=self.data.settings.auto_seconds)
-        ttk.Spinbox(auto, from_=1, to=600, width=5, textvariable=self.auto_seconds).pack(side="left", padx=6)
-        ttk.Label(auto, text="seconds").pack(side="left")
-        self.auto_btn = ttk.Button(auto, command=self.toggle_auto, style="Accent.TButton")
-        self.auto_btn.pack(side="left", padx=(10, 0))
-        self.auto_btn.config(text="Stop auto pick" if widget.auto_running else "Start auto pick")
+        self.autopick: Optional[AutoPick] = None
 
         # Bottom: settings
         bottom = ttk.LabelFrame(outer, text="Settings", padding=(8, 4))
@@ -579,22 +571,15 @@ class Manager:
         self.tree.tag_configure("absent", foreground=pal["absent"])
         self.save()
 
-    def toggle_auto(self):
-        if self.widget.auto_running:
-            self.widget.stop_auto()
+    def open_autopick(self):
+        if self.autopick and self.autopick.win.winfo_exists():
+            self.autopick.win.lift()
             return
-        try:
-            seconds = max(1, min(600, int(self.auto_seconds.get())))
-        except (tk.TclError, ValueError):
-            seconds = self.data.settings.auto_seconds
-        self.auto_seconds.set(seconds)
-        self.data.settings.auto_seconds = seconds
-        self.save()
-        self.widget.start_auto(seconds)
-        self.auto_btn.config(text="Stop auto pick")
+        self.autopick = AutoPick(self)
 
     def auto_stopped(self):
-        self.auto_btn.config(text="Start auto pick")
+        if self.autopick and self.autopick.win.winfo_exists():
+            self.autopick.show_stopped()
 
     def _on_tab(self, event):
         if event.widget.winfo_class() in ("Entry", "TEntry", "Text", "TSpinbox", "Spinbox"):
@@ -604,8 +589,67 @@ class Manager:
 
     def close(self):
         self.save_settings()
+        self.widget.stop_auto()
         self.win.destroy()
         self.widget.focus()
+
+
+class AutoPick:
+    """Small window that picks a new name every few seconds while it's open.
+
+    Closing it always stops autopick, so it can't be left running by accident.
+    """
+
+    def __init__(self, manager: Manager):
+        self.manager = manager
+        self.widget = manager.widget
+        self.win = tk.Toplevel(manager.win)
+        self.win.title("Autopick")
+        self.win.resizable(False, False)
+        self.win.attributes("-topmost", True)
+        self.win.transient(manager.win)
+        self.win.protocol("WM_DELETE_WINDOW", self.close)
+        self.win.bind("<Escape>", lambda e: self.close())
+
+        frame = ttk.Frame(self.win, padding=16)
+        frame.pack(fill="both", expand=True)
+        row = ttk.Frame(frame)
+        row.pack()
+        ttk.Label(row, text="Pick a new name every").pack(side="left")
+        self.seconds = tk.IntVar(value=self.widget.data.settings.auto_seconds)
+        ttk.Spinbox(row, from_=1, to=600, width=5, textvariable=self.seconds).pack(side="left", padx=6)
+        ttk.Label(row, text="seconds").pack(side="left")
+        self.button = ttk.Button(frame, command=self.toggle, style="Accent.TButton", width=14)
+        self.button.pack(pady=(14, 6))
+        ttk.Label(frame, text="Closing this window stops autopick.", style="Hint.TLabel").pack()
+        self.show_stopped()
+        # Open it in the middle of the class manager.
+        self.win.update_idletasks()
+        mx, my = manager.win.winfo_rootx(), manager.win.winfo_rooty()
+        x = mx + (manager.win.winfo_width() - self.win.winfo_reqwidth()) // 2
+        y = my + (manager.win.winfo_height() - self.win.winfo_reqheight()) // 2
+        self.win.geometry(f"+{max(0, x)}+{max(0, y)}")
+
+    def toggle(self):
+        if self.widget.auto_running:
+            self.widget.stop_auto()
+            return
+        try:
+            seconds = max(1, min(600, int(self.seconds.get())))
+        except (tk.TclError, ValueError):
+            seconds = self.widget.data.settings.auto_seconds
+        self.seconds.set(seconds)
+        self.widget.data.settings.auto_seconds = seconds
+        self.widget.store.save(self.widget.data)
+        self.widget.start_auto(seconds)
+        self.button.config(text="■  Stop")
+
+    def show_stopped(self):
+        self.button.config(text="▶  Start")
+
+    def close(self):
+        self.widget.stop_auto()
+        self.win.destroy()
 
 
 def _read_text(path: str) -> str:
