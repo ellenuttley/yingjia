@@ -745,35 +745,48 @@ class AutoPick:
 
 
 def show_help(parent: tk.Misc, pal: dict) -> None:
-    """Show the teacher's guide (English and Chinese) in its own window."""
+    """Show the teacher's guide, with an English tab and a Chinese tab."""
     win = tk.Toplevel(parent)
-    win.title(guide.TITLE)
+    win.title("Help / 使用说明")
     # Below the floating widget so it doesn't cover the guide.
     x = max(0, parent.winfo_rootx() + 60)
     win.geometry(f"660x560+{x}+{max(200, parent.winfo_rooty() + 40)}")
     win.attributes("-topmost", True)
     win.transient(parent)
     ttk.Button(win, text="Close / 关闭", command=win.destroy).pack(side="bottom", pady=(0, 10))
-    frame = ttk.Frame(win, padding=10)
-    frame.pack(fill="both", expand=True)
-    text = tk.Text(frame, wrap="word", padx=12, pady=10, font=(theme.FONT, 11), spacing1=2)
-    theme.style_tk(text, pal)
-    sb = ttk.Scrollbar(frame, orient="vertical", command=text.yview)
-    text.configure(yscrollcommand=sb.set)
-    sb.pack(side="right", fill="y")
-    text.pack(side="left", fill="both", expand=True)
-    text.tag_configure("title", font=(theme.FONT, 15, "bold"), spacing3=10)
-    text.tag_configure("en", font=(theme.FONT, 11, "bold"))
-    text.tag_configure("zh", foreground=pal["muted"])
-    text.tag_configure("gap", font=(theme.FONT, 6))
-    text.tag_configure("note", foreground=pal["muted"])
-    text.insert("end", guide.TITLE + "\n", "title")
-    for i, (en, zh) in enumerate(guide.STEPS, 1):
-        text.insert("end", f"{i}.  {en}\n", "en")
-        text.insert("end", zh + "\n", "zh")
-        text.insert("end", "\n", "gap")
-    text.insert("end", "\n" + guide.NOTE + "\n", "note")
-    text.configure(state="disabled")
+    tabs = ttk.Notebook(win, padding=8)
+    tabs.pack(fill="both", expand=True)
+    for lang in guide.LANGS:
+        frame = ttk.Frame(tabs, padding=4)
+        tabs.add(frame, text=f"  {guide.TAB_NAMES[lang]}  ")
+        text = tk.Text(frame, wrap="word", padx=12, pady=10, font=(theme.FONT, 11), spacing1=2)
+        theme.style_tk(text, pal)
+        sb = ttk.Scrollbar(frame, orient="vertical", command=text.yview)
+        text.configure(yscrollcommand=sb.set)
+        sb.pack(side="right", fill="y")
+        text.pack(side="left", fill="both", expand=True)
+        text.tag_configure("title", font=(theme.FONT, 15, "bold"), spacing3=10)
+        text.tag_configure("num", font=(theme.FONT, 11, "bold"), foreground=pal["accent"])
+        text.tag_configure("gap", font=(theme.FONT, 6))
+        text.tag_configure("note", foreground=pal["muted"])
+        text.insert("end", guide.TITLES[lang] + "\n", "title")
+        for i, step in enumerate(guide.steps(lang), 1):
+            text.insert("end", f"{i}.  ", "num")
+            text.insert("end", step + "\n")
+            text.insert("end", "\n", "gap")
+        text.insert("end", "\n" + guide.NOTES[lang] + "\n", "note")
+        text.configure(state="disabled")
+    if _windows_is_chinese():
+        tabs.select(guide.LANGS.index("zh"))
+
+
+def _windows_is_chinese() -> bool:
+    """True when Windows itself is set to Chinese, so Help opens on the 中文 tab."""
+    try:
+        from ctypes import windll
+        return windll.kernel32.GetUserDefaultUILanguage() & 0x3FF == 0x04  # LANG_CHINESE
+    except Exception:
+        return False
 
 
 def _read_text(path: str) -> str:

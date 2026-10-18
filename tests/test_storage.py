@@ -95,12 +95,14 @@ class StoreTests(unittest.TestCase):
 
 
 class GuideTests(unittest.TestCase):
-    def test_guide_has_both_languages(self):
+    def test_separate_guides(self):
         from yingjia import guide
-        text = guide.as_text()
-        self.assertIn("Tab", text)
-        self.assertIn("使用说明", text)
-        self.assertEqual(len(guide.STEPS), text.count("\r\n\r\n") - 1)
+        en, zh = guide.as_text("en"), guide.as_text("zh")
+        self.assertIn("Tab", en)
+        self.assertNotIn("点名", en)
+        self.assertIn("随机点名", zh)
+        for text in (en, zh):
+            self.assertEqual(len(guide.STEPS) + 1, text.count("\r\n\r\n"))  # + title
 
 
 if __name__ == "__main__":

@@ -40,11 +40,12 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "..\dist\Yingjia.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\guide\How to use - 使用说明.txt"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\guide\*.txt"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\Yingjia"; Filename: "{app}\Yingjia.exe"
-Name: "{autoprograms}\Yingjia - How to use 使用说明"; Filename: "{app}\How to use - 使用说明.txt"
+Name: "{autoprograms}\Yingjia - How to use (English)"; Filename: "{app}\How to use Yingjia (English).txt"
+Name: "{autoprograms}\Yingjia 使用说明 (中文)"; Filename: "{app}\Yingjia 使用说明 (中文).txt"
 Name: "{autodesktop}\Yingjia"; Filename: "{app}\Yingjia.exe"; Tasks: desktopicon
 
 [Run]

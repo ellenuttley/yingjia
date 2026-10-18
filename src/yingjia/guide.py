@@ -1,10 +1,14 @@
-"""The teacher's guide, in short English and Simplified Chinese.
+"""The teacher's guide: a full English version and a full Chinese version.
 
-Shown by the Help button in the app and saved as a .txt file next to the
-download, so there is one copy to keep up to date.
+Shown by the Help button in the app and saved as two .txt files next to the
+download. Each step keeps its English and Chinese side by side here so the
+two versions stay in step when one is edited.
 """
 
-TITLE = "How to use Yingjia  ·  赢家 使用说明"
+LANGS = ("en", "zh")
+TITLES = {"en": "How to use Yingjia", "zh": "赢家 Yingjia 使用说明"}
+TAB_NAMES = {"en": "English", "zh": "中文"}
+FILES = {"en": "How to use Yingjia (English).txt", "zh": "Yingjia 使用说明 (中文).txt"}
 
 STEPS = [
     ("Open Yingjia: double-click the Yingjia icon on the desktop.\n"
@@ -47,26 +51,34 @@ STEPS = [
      "关闭 Yingjia：点击 ✕。"),
 ]
 
-NOTE = ("Your class lists are saved only on this computer. Nothing is sent to the internet.\n"
-        "名单只保存在这台电脑上，不会上传到网络。")
+NOTES = {"en": "Your class lists are saved only on this computer. Nothing is sent to the internet.",
+         "zh": "名单只保存在这台电脑上，不会上传到网络。"}
 
 
-def as_text() -> str:
-    lines = [TITLE, "=" * 40, ""]
-    for i, (en, zh) in enumerate(STEPS, 1):
-        first, *rest = en.split("\n")
+def steps(lang: str):
+    """The steps in one language, as a list of strings (may contain newlines)."""
+    i = LANGS.index(lang)
+    return [pair[i] for pair in STEPS]
+
+
+def as_text(lang: str) -> str:
+    lines = [TITLES[lang], "=" * 40, ""]
+    for i, step in enumerate(steps(lang), 1):
+        first, *rest = step.split("\n")
         lines.append(f"{i}. {first}")
         lines.extend("   " + part for part in rest)
-        lines.extend("   " + part for part in zh.split("\n"))
         lines.append("")
-    lines.append(NOTE)
+    lines.append(NOTES[lang])
     # Windows Notepad shows CRLF line endings best.
     return "\r\n".join(lines) + "\r\n"
 
 
 if __name__ == "__main__":
+    import os
     import sys
-    path = sys.argv[1] if len(sys.argv) > 1 else "How to use - 使用说明.txt"
-    # UTF-8 with BOM so old versions of Notepad show the Chinese correctly.
-    with open(path, "w", encoding="utf-8-sig", newline="") as f:
-        f.write(as_text())
+    out_dir = sys.argv[1] if len(sys.argv) > 1 else "."
+    os.makedirs(out_dir, exist_ok=True)
+    for lang in LANGS:
+        # UTF-8 with BOM so old versions of Notepad show the Chinese correctly.
+        with open(os.path.join(out_dir, FILES[lang]), "w", encoding="utf-8-sig", newline="") as f:
+            f.write(as_text(lang))

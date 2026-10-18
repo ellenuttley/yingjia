@@ -35,10 +35,11 @@ Dark mode: [screenshot-dark.png](screenshot-dark.png)
 - **Lock** with **Ctrl+L** (same as No Hands): the widget can't be moved or
   resized and the close and settings buttons are hidden. Press Ctrl+L again to unlock.
 - Works with Chinese, English and accented names, mixed in the same list.
-- **Help / 使用说明**: a simple step-by-step guide in English and Chinese,
-  shown the first time the app opens and from the Help button in the class
-  manager. It is also saved as `How to use - 使用说明.txt` with the
-  installer and USB downloads (source: `src/yingjia/guide.py`).
+- **Help / 使用说明**: a simple step-by-step guide, with a full English
+  version and a full Chinese version on separate tabs. It opens the first
+  time the app starts and from the Help button in the class manager, and
+  ships as two .txt files with the installer and USB downloads (source:
+  `src/yingjia/guide.py`).
 - **Windows 11 look** with light and dark mode (Settings in the manager),
   using the Sun Valley theme. The theme is packed inside the .exe, so it
   works offline.

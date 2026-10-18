@@ -38,14 +38,14 @@ jobs:
         shell: pwsh
         run: |
           $name = "Yingjia${{ matrix.suffix }}"
-          $guide = "How to use - 使用说明.txt"
-          New-Item -ItemType Directory -Force out, guide | Out-Null
-          python src/yingjia/guide.py "guide/$guide"
+          New-Item -ItemType Directory -Force out | Out-Null
+          # Writes the English and Chinese guides into guide/
+          python src/yingjia/guide.py guide
           Copy-Item dist/Yingjia.exe "out/$name.exe"
           # Portable zip: data is kept next to the exe (USB stick friendly)
           New-Item -ItemType Directory -Force "portable/$name" | Out-Null
           Copy-Item dist/Yingjia.exe "portable/$name/Yingjia.exe"
-          Copy-Item "guide/$guide" "portable/$name/$guide"
+          Copy-Item guide/*.txt "portable/$name/"
           "Data is saved in the 'data' folder next to Yingjia.exe." | Out-File "portable/$name/portable.txt"
           Compress-Archive -Path "portable/$name" -DestinationPath "out/$name-USB.zip"
       - name: Build installer (adds a desktop icon)
