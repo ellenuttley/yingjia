@@ -52,6 +52,8 @@ class Widget:
         self._auto_next = 0.0
         self._auto_remaining = 0.0
         self._images = {}
+        self._anim_job = None
+        self._size = None
 
         # The name grows and shrinks with the widget (see _fit_name).
         self.name_font = tkfont.Font(family=theme.FONT, size=-40, weight="bold")
@@ -191,6 +193,7 @@ class Widget:
         return "break"
 
     def pick(self):
+        self._cancel_animation()
         c = self.data.current()
         if not c:
             self.name_label.config(text="Add a class first", foreground=self.pal["muted"])
@@ -212,11 +215,18 @@ class Widget:
             if i < steps and len(pool) > 1:
                 self.name_label.config(text=rng.choice(pool), foreground=self.pal["muted"])
                 self._fit_name()
-                self.root.after(35 + i * 10, step, i + 1)
+                self._anim_job = self.root.after(35 + i * 10, step, i + 1)
             else:
+                self._anim_job = None
                 self.name_label.config(text=final, foreground=self.pal["fg"])
                 self._fit_name()
         step(0)
+
+    def _cancel_animation(self):
+        # Stops an earlier shuffle from overwriting a newer name (fast Tab presses).
+        if self._anim_job is not None:
+            self.root.after_cancel(self._anim_job)
+            self._anim_job = None
 
     def _lock_clicked(self):
         if not self.data.settings.widget_locked:
@@ -245,7 +255,7 @@ class Widget:
         # reassert it every couple of seconds.
         self.root.attributes("-topmost", True)
         self.root.lift()
-        self.root.after(2000, self._keep_on_top)
+        self._top_job = self.root.after(2000, self._keep_on_top)
 
     def _start_drag(self, e):
         self.root.focus_force()
@@ -273,11 +283,14 @@ class Widget:
         w = max(MIN_SIZE[0], w0 + e.x_root - x0)
         h = max(MIN_SIZE[1], h0 + e.y_root - y0)
         self.root.geometry(f"{w}x{h}")
+        self._size = (w, h)
         return "break"
 
     def _end_resize(self, e):
         s = self.data.settings
-        s.widget_w, s.widget_h = self.root.winfo_width(), self.root.winfo_height()
+        # Use the size we asked for: the window may not have caught up yet.
+        if self._size:
+            s.widget_w, s.widget_h = self._size
         self.store.save(self.data)
         return "break"
 
@@ -299,6 +312,7 @@ class Widget:
         self.data.current_class_id = class_id
         self.picker.last = None
         self.store.save(self.data)
+        self._cancel_animation()
         self.name_label.config(text="Press Tab", foreground=self.pal["fg"])
         self._fit_name()
         self.refresh()
@@ -317,6 +331,9 @@ class Widget:
         self.manager = Manager(self)
 
     def quit(self):
+        self.stop_auto()
+        self._cancel_animation()
+        self.root.after_cancel(self._top_job)
         self.store.save(self.data)
         self.root.destroy()
 
@@ -824,6 +841,10 @@ class _Tooltip:
 
 
 def main():
+    if "--self-test" in sys.argv:
+        # Used by the build to check the finished exe really works.
+        from .selftest import main as self_test
+        sys.exit(self_test(sys.argv[sys.argv.index("--self-test") + 1:]))
     store = Store()
     data = store.load()
     try:
