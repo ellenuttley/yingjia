@@ -7,6 +7,7 @@ teacher's real class lists. Exit code 0 means every check passed.
 """
 from __future__ import annotations
 
+import faulthandler
 import os
 import shutil
 import sys
@@ -37,6 +38,14 @@ class SelfTest:
         app.filedialog.asksaveasfilename = lambda **k: self.save_path
 
     # -- helpers -----------------------------------------------------------
+    log_file = None
+
+    def log(self, line: str):
+        stream = self.log_file or sys.stdout
+        if stream is not None:
+            stream.write(line + "\n")
+            stream.flush()
+
     def check(self, ok: bool, what: str):
         if ok:
             self.passed += 1
@@ -87,6 +96,7 @@ class SelfTest:
             self.reopen_keeps_everything,
         ]
         for step in steps:
+            self.log(f"running {step.__name__}")
             try:
                 step()
             except Exception:
@@ -345,13 +355,19 @@ def main(argv=None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     out = argv[0] if argv else None
     test = SelfTest()
+    # If anything hangs, write where every thread is stuck and quit after 3 minutes.
+    log = open(out + ".log", "w", encoding="utf-8") if out else None
+    test.log_file = log
+    faulthandler.dump_traceback_later(180, exit=True, file=log or sys.stderr)
     try:
         failures = test.run()
     except Exception:
         failures = ["self-test crashed:\n" + traceback.format_exc()]
     report = (f"{test.passed} checks passed, {len(failures)} failed\n" +
               "".join(f"FAIL: {f}\n" for f in failures))
+    faulthandler.cancel_dump_traceback_later()
     if out:
+        log.close()
         with open(out, "w", encoding="utf-8") as f:
             f.write(report)
     else:
