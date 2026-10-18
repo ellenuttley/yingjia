@@ -77,7 +77,7 @@ class SelfTest:
         widget.focus_force()
         self.wait(0.05)
         widget.event_generate("<KeyPress>", keysym="Tab", when="now")
-        self.wait(0.7)  # let the shuffle animation finish
+        self.wait(1.0)  # let the shuffle animation finish
 
     # -- scenario ----------------------------------------------------------
     def run(self) -> List[str]:
@@ -163,11 +163,14 @@ class SelfTest:
         names = {s.name for s in w.data.current().students}
         self.tab(w.name_label)
         picked = [w.picker.last]
-        self.check(str(w.name_label.cget("text")) == picked[0], "Tab on the widget picks a name")
+        self.check(picked[0] is not None and str(w.name_label.cget("text")) == picked[0],
+                   f"Tab on the widget picks a name (picked {picked[0]!r}, showing "
+                   f"{w.name_label.cget('text')!r}, focus {self.root.focus_get()!r})")
         m.tree.focus_set()
         self.tab(m.tree)
         picked.append(w.picker.last)
-        self.check(picked[1] != picked[0], "Tab in Manage classes picks a new name")
+        self.check(picked[1] is not None and picked[1] != picked[0],
+                   f"Tab in Manage classes picks a new name (got {picked[1]!r}, focus {self.root.focus_get()!r})")
         before = w.picker.last
         entry = self.find(m.win, "TEntry")
         self.tab(entry)
