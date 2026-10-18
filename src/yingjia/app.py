@@ -9,6 +9,7 @@ from tkinter import filedialog, messagebox, simpledialog, ttk
 from typing import Optional
 
 from . import theme
+from .icons import ICONS
 from .storage import AppData, Picker, Store, Student, parse_names, today
 
 MIN_SIZE = (300, 120)
@@ -44,12 +45,8 @@ class Widget:
         body = ttk.Frame(border, style="Widget.TFrame", padding=(12, 8, 12, 10))
         body.pack(fill="both", expand=True)
 
-        top = ttk.Frame(body, style="Widget.TFrame")
-        top.pack(fill="x")
-        self.class_var = tk.StringVar()
-        self.menu_var = tk.StringVar()
-        self.class_menu = ttk.Menubutton(top, textvariable=self.class_var)
-        self.class_menu.pack(side="left")
+        self._auto_job = None
+        self._images = {}
 
         # The name grows and shrinks with the widget (see _fit_name).
         self.name_font = tkfont.Font(family=theme.FONT, size=-40, weight="bold")
@@ -60,12 +57,12 @@ class Widget:
 
         bar = ttk.Frame(body, style="Widget.TFrame")
         bar.pack(fill="x")
-        self.pick_btn = ttk.Button(bar, text="Pick a name  (Tab)", command=self.pick,
-                                   style="Pick.Accent.TButton", cursor="hand2")
+        self.pick_btn = ttk.Button(bar, command=self.pick, style="Pick.Accent.TButton", cursor="hand2")
         self.pick_btn.pack(side="left")
-        self.close_btn = self._small(bar, "✕", self.quit, "Close")
-        self.lock_btn = self._small(bar, "🔓", self.toggle_lock, "Lock in place (Ctrl+L)")
-        self.manage_btn = self._small(bar, "⚙", self.open_manager, "Manage classes")
+        _Tooltip(self.pick_btn, "Pick a name (Tab)")
+        self.close_btn = self._small(bar, self.quit, "Close")
+        self.lock_btn = self._small(bar, self.toggle_lock, "Lock in place (Ctrl+L)")
+        self.manage_btn = self._small(bar, self.open_manager, "Manage classes")
 
         # Drag the bottom-right corner to resize.
         self.grip = ttk.Label(body, text="◢", style="Grip.TLabel", cursor=RESIZE_CURSOR)
@@ -74,7 +71,7 @@ class Widget:
         self.grip.bind("<B1-Motion>", self._on_resize)
         self.grip.bind("<ButtonRelease-1>", self._end_resize)
 
-        for w in (root, border, body, top, self.name_label, bar):
+        for w in (root, border, body, self.name_label, bar):
             w.bind("<ButtonPress-1>", self._start_drag)
             w.bind("<B1-Motion>", self._on_drag)
             w.bind("<ButtonRelease-1>", self._end_drag)
@@ -84,15 +81,18 @@ class Widget:
         root.bind_all("<Control-l>", lambda e: self.toggle_lock())
         root.bind_all("<Control-L>", lambda e: self.toggle_lock())
         self.name_label.bind("<Double-Button-1>", lambda e: self.pick())
+        root.bind("<Escape>", lambda e: self.stop_auto())
 
         self.refresh()
         self._apply_lock()
         self._keep_on_top()
+        # Take keyboard focus straight away so Tab works without clicking first.
+        root.after(200, self.focus)
         if not data.classes:
             root.after(300, self.open_manager)
 
-    def _small(self, parent, text, cmd, tip):
-        b = ttk.Button(parent, text=text, command=cmd, style="Icon.TButton", cursor="hand2")
+    def _small(self, parent, cmd, tip):
+        b = ttk.Button(parent, command=cmd, style="Icon.TButton", cursor="hand2")
         b.pack(side="right", padx=(6, 0))
         _Tooltip(b, tip)
         return b
@@ -102,6 +102,37 @@ class Widget:
         self.pal = theme.apply(self.root, name)
         self.name_label.config(foreground=self.pal["fg"])
         self.refresh()
+
+    def _icon(self, name: str) -> tk.PhotoImage:
+        key = (self.data.settings.theme, name)
+        if key not in self._images:
+            icons = ICONS.get(self.data.settings.theme, ICONS["light"])
+            self._images[key] = tk.PhotoImage(master=self.root, data=icons[name])
+        return self._images[key]
+
+    def focus(self):
+        try:
+            self.root.focus_force()
+        except tk.TclError:
+            pass
+
+    # -- auto pick ---------------------------------------------------------
+    def start_auto(self, seconds: int):
+        if self._auto_job is not None:
+            self.root.after_cancel(self._auto_job)
+        self.pick()
+        self._auto_job = self.root.after(seconds * 1000, self.start_auto, seconds)
+
+    def stop_auto(self):
+        if self._auto_job is not None:
+            self.root.after_cancel(self._auto_job)
+            self._auto_job = None
+            if self.manager and self.manager.win.winfo_exists():
+                self.manager.auto_stopped()
+
+    @property
+    def auto_running(self) -> bool:
+        return self._auto_job is not None
 
     # -- behaviour ---------------------------------------------------------
     def _on_tab(self, event):
@@ -143,13 +174,12 @@ class Widget:
 
     def _apply_lock(self):
         locked = self.data.settings.widget_locked
-        self.lock_btn.config(text="🔒" if locked else "🔓")
+        self.lock_btn.config(image=self._icon("lock" if locked else "unlock"))
         for b in (self.close_btn, self.manage_btn):
             if locked:
                 b.pack_forget()
             else:
                 b.pack(side="right", padx=(6, 0), before=self.lock_btn)
-        self.class_menu.state(["disabled"] if locked else ["!disabled"])
         if locked:
             self.grip.place_forget()
         else:
@@ -221,17 +251,10 @@ class Widget:
         self.refresh()
 
     def refresh(self):
-        c = self.data.current()
-        self.class_var.set(c.name if c else "No classes yet")
-        menu = tk.Menu(self.class_menu, tearoff=False)
-        theme.style_tk(menu, self.pal)
-        self.menu_var.set(c.id if c else "")
-        for cl in self.data.classes:
-            menu.add_radiobutton(label=cl.name, value=cl.id, variable=self.menu_var,
-                                 command=lambda i=cl.id: self.select_class(i))
-        menu.add_separator()
-        menu.add_command(label="Manage classes…", command=self.open_manager)
-        self.class_menu.config(menu=menu)
+        self.pick_btn.config(image=self._icon("pick"))
+        self.manage_btn.config(image=self._icon("gear"))
+        self.close_btn.config(image=self._icon("close"))
+        self.lock_btn.config(image=self._icon("lock" if self.data.settings.widget_locked else "unlock"))
 
     def open_manager(self):
         if self.manager and self.manager.win.winfo_exists():
@@ -257,6 +280,8 @@ class Manager:
         self.win.minsize(760, 600)
         self.win.attributes("-topmost", True)
         self.win.protocol("WM_DELETE_WINDOW", self.close)
+        # Tab picks a name here too, except while typing in a text box.
+        self.win.bind("<Tab>", self._on_tab)
 
         pad = {"padx": 8, "pady": 4}
         outer = ttk.Frame(self.win, padding=10)
@@ -317,6 +342,16 @@ class Manager:
         for text, cmd in (("Paste many names…", self.paste_names), ("Rename…", self.rename_student),
                           ("Remove", self.remove_student), ("Everyone's here", self.all_present)):
             ttk.Button(btns, text=text, command=cmd).pack(side="left", padx=(0, 6))
+
+        auto = ttk.Frame(right)
+        auto.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(6, 0))
+        ttk.Label(auto, text="Auto pick a new name every").pack(side="left")
+        self.auto_seconds = tk.IntVar(value=self.data.settings.auto_seconds)
+        ttk.Spinbox(auto, from_=1, to=600, width=5, textvariable=self.auto_seconds).pack(side="left", padx=6)
+        ttk.Label(auto, text="seconds").pack(side="left")
+        self.auto_btn = ttk.Button(auto, command=self.toggle_auto, style="Accent.TButton")
+        self.auto_btn.pack(side="left", padx=(10, 0))
+        self.auto_btn.config(text="Stop auto pick" if widget.auto_running else "Start auto pick")
 
         # Bottom: settings
         bottom = ttk.LabelFrame(outer, text="Settings", padding=(8, 4))
@@ -544,9 +579,33 @@ class Manager:
         self.tree.tag_configure("absent", foreground=pal["absent"])
         self.save()
 
+    def toggle_auto(self):
+        if self.widget.auto_running:
+            self.widget.stop_auto()
+            return
+        try:
+            seconds = max(1, min(600, int(self.auto_seconds.get())))
+        except (tk.TclError, ValueError):
+            seconds = self.data.settings.auto_seconds
+        self.auto_seconds.set(seconds)
+        self.data.settings.auto_seconds = seconds
+        self.save()
+        self.widget.start_auto(seconds)
+        self.auto_btn.config(text="Stop auto pick")
+
+    def auto_stopped(self):
+        self.auto_btn.config(text="Start auto pick")
+
+    def _on_tab(self, event):
+        if event.widget.winfo_class() in ("Entry", "TEntry", "Text", "TSpinbox", "Spinbox"):
+            return None
+        self.widget.pick()
+        return "break"
+
     def close(self):
         self.save_settings()
         self.win.destroy()
+        self.widget.focus()
 
 
 def _read_text(path: str) -> str:

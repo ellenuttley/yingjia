@@ -41,8 +41,8 @@ def apply(root: tk.Misc, name: str) -> dict:
     style.configure("Border.TFrame", background=pal["border"])
     style.configure("Widget.TLabel", background=pal["bg"], foreground=pal["muted"], font=(FONT, 10))
     style.configure("Name.TLabel", background=pal["bg"], foreground=pal["fg"])
-    style.configure("Pick.Accent.TButton", font=(FONT, 12, "bold"), padding=(14, 6))
-    style.configure("Icon.TButton", font=(FONT, 11), padding=(6, 4), width=3)
+    style.configure("Pick.Accent.TButton", padding=(22, 4))
+    style.configure("Icon.TButton", padding=(8, 6))
     style.configure("Hint.TLabel", foreground=pal["muted"])
     style.configure("Grip.TLabel", background=pal["bg"], foreground=pal["muted"], font=(FONT, 12))
     if sv_ttk is None:

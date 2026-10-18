@@ -73,6 +73,7 @@ class Settings:
     widget_w: int = 440
     widget_h: int = 170
     theme: str = "light"
+    auto_seconds: int = 10
 
 
 @dataclass

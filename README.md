@@ -12,11 +12,15 @@ Dark mode: [screenshot-dark.png](screenshot-dark.png)
 ## What it does
 
 - **Floating widget** that stays on top of every window (slides, browser,
-  smart-board software). Shows the class name and the picked name in large
-  text. Drag the bottom-right corner to resize it; the name grows to fill
+  smart-board software). Shows just the picked name in large text, so the
+  class can't see which list is in use. Drag the bottom-right corner to resize it; the name grows to fill
   the space, and long names shrink to fit.
-- **Pick a name** with the **Tab** key (when the widget is focused; click it
-  once) or the big yellow button, which works well on a smart board.
+- **Pick a name** with the **Tab** key or the dice button, which works well
+  on a smart board. Tab works whenever the widget or the class manager is
+  the active window (except while typing in a text box).
+- **Auto pick**: in the class manager, set a number of seconds and press
+  "Start auto pick" to show a new name every few seconds. Stop it with the
+  same button or Esc.
 - **Fair picking**: by default everyone is picked once before anyone is picked
   again, and nobody comes up twice in a row. Can be switched to pure random.
 - **Class manager** (⚙ button): create, rename, duplicate and delete classes;
