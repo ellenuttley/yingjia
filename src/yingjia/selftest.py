@@ -355,6 +355,10 @@ def main(argv=None) -> int:
         with open(out, "w", encoding="utf-8") as f:
             f.write(report)
     else:
+        try:
+            sys.stdout.reconfigure(errors="backslashreplace")  # Chinese names on a non-UTF-8 console
+        except AttributeError:
+            pass
         print(report, end="")
     return 1 if failures else 0
 
