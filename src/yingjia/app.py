@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import sys
+import time
 import tkinter as tk
 import tkinter.font as tkfont
 from tkinter import filedialog, messagebox, simpledialog, ttk
@@ -46,6 +47,10 @@ class Widget:
         body.pack(fill="both", expand=True)
 
         self._auto_job = None
+        self.auto_state = "stopped"
+        self.auto_seconds = data.settings.auto_seconds
+        self._auto_next = 0.0
+        self._auto_remaining = 0.0
         self._images = {}
 
         # The name grows and shrinks with the widget (see _fit_name).
@@ -117,22 +122,59 @@ class Widget:
             pass
 
     # -- auto pick ---------------------------------------------------------
+    # State is "stopped", "running" or "paused". Pausing keeps the time left
+    # until the next name, so resuming carries on where it left off.
     def start_auto(self, seconds: int):
-        if self._auto_job is not None:
-            self.root.after_cancel(self._auto_job)
+        self.auto_seconds = seconds
+        self.auto_state = "running"
         self.pick()
-        self._auto_job = self.root.after(seconds * 1000, self.start_auto, seconds)
+        self._schedule_auto(seconds)
+
+    def pause_auto(self):
+        if self.auto_state != "running":
+            return
+        self._auto_remaining = max(0.0, self._auto_next - time.monotonic())
+        self._cancel_auto_job()
+        self.auto_state = "paused"
+
+    def resume_auto(self):
+        if self.auto_state != "paused":
+            return
+        self.auto_state = "running"
+        self._schedule_auto(self._auto_remaining)
 
     def stop_auto(self):
-        if self._auto_job is not None:
-            self.root.after_cancel(self._auto_job)
-            self._auto_job = None
-            if self.manager and self.manager.win.winfo_exists():
-                self.manager.auto_stopped()
+        was_on = self.auto_state != "stopped"
+        self._cancel_auto_job()
+        self.auto_state = "stopped"
+        if was_on and self.manager and self.manager.win.winfo_exists():
+            self.manager.auto_stopped()
+
+    def auto_time_left(self) -> Optional[float]:
+        if self.auto_state == "running":
+            return max(0.0, self._auto_next - time.monotonic())
+        if self.auto_state == "paused":
+            return self._auto_remaining
+        return None
 
     @property
     def auto_running(self) -> bool:
-        return self._auto_job is not None
+        return self.auto_state != "stopped"
+
+    def _schedule_auto(self, delay: float):
+        self._cancel_auto_job()
+        self._auto_next = time.monotonic() + delay
+        self._auto_job = self.root.after(int(delay * 1000), self._auto_tick)
+
+    def _auto_tick(self):
+        self._auto_job = None
+        self.pick()
+        self._schedule_auto(self.auto_seconds)
+
+    def _cancel_auto_job(self):
+        if self._auto_job is not None:
+            self.root.after_cancel(self._auto_job)
+            self._auto_job = None
 
     # -- behaviour ---------------------------------------------------------
     def _on_tab(self, event):
@@ -619,11 +661,20 @@ class AutoPick:
         self.seconds = tk.IntVar(value=self.widget.data.settings.auto_seconds)
         ttk.Spinbox(row, from_=1, to=600, width=5, textvariable=self.seconds).pack(side="left", padx=6)
         ttk.Label(row, text="seconds").pack(side="left")
-        self.button = ttk.Button(frame, command=self.toggle, style="Accent.TButton", width=14)
-        self.button.pack(pady=(14, 6))
-        ttk.Label(frame, text="Closing this window stops autopick.", style="Hint.TLabel").pack()
+        # A new interval applies from the next name onwards.
+        self.seconds.trace_add("write", lambda *_: self._read_seconds())
+
+        buttons = ttk.Frame(frame)
+        buttons.pack(pady=(14, 6))
+        self.play_btn = ttk.Button(buttons, command=self.play_pause, style="Accent.TButton", width=10)
+        self.play_btn.pack(side="left", padx=4)
+        self.stop_btn = ttk.Button(buttons, text="■  Stop", command=self.widget.stop_auto, width=10)
+        self.stop_btn.pack(side="left", padx=4)
+        self.status = ttk.Label(frame, style="Hint.TLabel")
+        self.status.pack()
+        ttk.Label(frame, text="Closing this window stops autopick.", style="Hint.TLabel").pack(pady=(4, 0))
         ttk.Button(frame, text="Close", command=self.close).pack(pady=(10, 0))
-        self.show_stopped()
+        self._update()
         # Open it in the middle of the class manager.
         self.win.update_idletasks()
         mx, my = manager.win.winfo_rootx(), manager.win.winfo_rooty()
@@ -631,22 +682,48 @@ class AutoPick:
         y = my + (manager.win.winfo_height() - self.win.winfo_reqheight()) // 2
         self.win.geometry(f"+{max(0, x)}+{max(0, y)}")
 
-    def toggle(self):
-        if self.widget.auto_running:
-            self.widget.stop_auto()
-            return
+    def _read_seconds(self) -> int:
         try:
             seconds = max(1, min(600, int(self.seconds.get())))
         except (tk.TclError, ValueError):
-            seconds = self.widget.data.settings.auto_seconds
-        self.seconds.set(seconds)
+            return self.widget.auto_seconds
+        self.widget.auto_seconds = seconds
         self.widget.data.settings.auto_seconds = seconds
-        self.widget.store.save(self.widget.data)
-        self.widget.start_auto(seconds)
-        self.button.config(text="■  Stop")
+        return seconds
+
+    def play_pause(self):
+        state = self.widget.auto_state
+        if state == "running":
+            self.widget.pause_auto()
+        elif state == "paused":
+            self.widget.resume_auto()
+        else:
+            seconds = self._read_seconds()
+            self.seconds.set(seconds)
+            self.widget.store.save(self.widget.data)
+            self.widget.start_auto(seconds)
+        self._render()
 
     def show_stopped(self):
-        self.button.config(text="▶  Start")
+        self._render()
+
+    def _render(self):
+        state = self.widget.auto_state
+        self.play_btn.config(text="❚❚  Pause" if state == "running" else "▶  Play")
+        self.stop_btn.state(["disabled"] if state == "stopped" else ["!disabled"])
+        left = self.widget.auto_time_left()
+        if state == "running":
+            self.status.config(text=f"Next name in {int(left + 0.99)}s")
+        elif state == "paused":
+            self.status.config(text=f"Paused, next name in {int(left + 0.99)}s")
+        else:
+            self.status.config(text="Stopped")
+
+    def _update(self):
+        if not self.win.winfo_exists():
+            return
+        self._render()
+        self.win.after(200, self._update)
 
     def close(self):
         self.widget.stop_auto()

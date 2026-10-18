@@ -19,8 +19,8 @@ Dark mode: [screenshot-dark.png](screenshot-dark.png)
   on a smart board. Tab works whenever the widget or the class manager is
   the active window (except while typing in a text box).
 - **Autopick**: the "Autopick…" button in the class manager opens a small
-  window where you set the seconds and press Start/Stop to show a new name
-  every few seconds. Closing that window (or the class manager) always
+  window where you set the seconds and press Play to show a new name every
+  few seconds. Pause keeps the countdown where it was; Stop resets it. Closing that window (or the class manager) always
   stops it, so it can't be left running by accident.
 - **Fair picking**: by default everyone is picked once before anyone is picked
   again, and nobody comes up twice in a row. Can be switched to pure random.
