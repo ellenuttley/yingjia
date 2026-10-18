@@ -57,6 +57,7 @@ class Widget:
 
         # The name grows and shrinks with the widget (see _fit_name).
         self.name_font = tkfont.Font(family=theme.FONT, size=-40, weight="bold")
+        self._rulers, self._font_key, self._cjk = {}, None, None
         # The label sits in a fixed box (place, not grid) so changing the font
         # size can never change the layout and set off another resize.
         self.name_box = ttk.Frame(body, style="Widget.TFrame", width=1, height=1)
@@ -303,18 +304,35 @@ class Widget:
         return "break"
 
     def _fit_name(self):
-        """Size the name to fill the space it has, shrinking long names to fit."""
+        """Size the name to fill the space it has, shrinking long names to fit.
+
+        Sizes go up in steps of 4px and names are measured with a fixed-size
+        copy of the font. Each new font size makes Windows look up Chinese
+        characters again, which was slow enough to freeze the widget.
+        """
         avail_w = self.name_box.winfo_width() - 8
         avail_h = self.name_box.winfo_height()
         if avail_w < 20 or avail_h < 20:
             return
-        px = max(14, int(avail_h * 0.8))
         text = self.name_label.cget("text") or " "
-        self.name_font.configure(size=-px)
-        width = self.name_font.measure(text)
-        if width > avail_w:
-            px = max(12, int(px * avail_w / width))
-            self.name_font.configure(size=-px)
+        family = self._cjk_family() if any(ord(ch) >= 0x2E80 for ch in text) else theme.FONT
+        ruler = self._rulers.get(family)
+        if ruler is None:
+            ruler = self._rulers[family] = tkfont.Font(family=family, size=-100, weight="bold")
+        width_at_100 = max(1, ruler.measure(text))
+        px = min(int(avail_h * 0.8), int(100 * avail_w / width_at_100))
+        px = max(12, px // 4 * 4)
+        if self._font_key != (family, px):
+            self._font_key = (family, px)
+            self.name_font.configure(family=family, size=-px)
+
+    def _cjk_family(self) -> str:
+        # A font that has Chinese characters, so Windows doesn't search for one.
+        if self._cjk is None:
+            have = set(tkfont.families(self.root))
+            self._cjk = next((f for f in ("Microsoft YaHei UI", "Microsoft YaHei", "SimHei",
+                                          "Noto Sans CJK SC", "WenQuanYi Zen Hei") if f in have), theme.FONT)
+        return self._cjk
 
     def select_class(self, class_id: str):
         self.data.current_class_id = class_id

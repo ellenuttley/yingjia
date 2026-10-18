@@ -13,6 +13,8 @@ jobs:
           python-version: "3.12"
       - run: pip install -r requirements.txt
       - run: python tools/hangprobe.py
+        timeout-minutes: 5
+        continue-on-error: true
         env:
           PYTHONPATH: src
           PYTHONIOENCODING: utf-8
@@ -22,10 +24,9 @@ jobs:
         env:
           PYTHONPATH: src
         continue-on-error: true
-      - name: full self-test direct, no faulthandler
+      - name: full self-test direct
         run: python -m yingjia.selftest
         timeout-minutes: 4
         continue-on-error: true
         env:
           PYTHONPATH: src
-          NO_FH: "1"
