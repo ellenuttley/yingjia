@@ -406,7 +406,8 @@ def main(argv=None) -> int:
     # If anything hangs, write where every thread is stuck and quit after 3 minutes.
     log = open(out + ".log", "w", encoding="utf-8") if out else None
     test.log_file = log
-    faulthandler.dump_traceback_later(180, exit=True, file=log or sys.stderr)
+    if not os.environ.get('NO_FH'):
+        faulthandler.dump_traceback_later(180, exit=True, file=log or sys.stderr)
     test.start_hang_detector()
     try:
         failures = test.run()

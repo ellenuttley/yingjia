@@ -3,7 +3,7 @@ import subprocess
 import sys
 import time
 
-VARIANTS = ["base", "ascii", "nofit", "norender", "nosave", "notop", "short"]
+VARIANTS = ["fh", "fhshort", "base", "ascii", "nofit", "norender", "nosave", "notop", "short"]
 
 
 def child(variant):
@@ -24,10 +24,13 @@ def child(variant):
         selftest.Store.save = lambda self, data: None
     if variant == "notop":
         app.Widget._keep_on_top = lambda self: setattr(self, "_top_job", self.root.after(999999, lambda: None))
+    if variant.startswith("fh"):
+        import faulthandler
+        faulthandler.dump_traceback_later(180, exit=True)
     t = selftest.SelfTest()
     t.start_hang_detector()
     steps = [t.first_run, t.classes_and_students]
-    if variant != "short":
+    if variant not in ("short", "fhshort"):
         steps += [t.picking, t.absences, t.import_export, t.no_resize_loop]
     for s in steps:
         s()
