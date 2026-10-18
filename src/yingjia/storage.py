@@ -69,7 +69,9 @@ class Settings:
     widget_x: Optional[int] = None
     widget_y: Optional[int] = None
     widget_locked: bool = False
-    font_size: int = 28
+    font_size: int = 28  # no longer used: the name now scales with the widget
+    widget_w: int = 440
+    widget_h: int = 170
     theme: str = "light"
 
 

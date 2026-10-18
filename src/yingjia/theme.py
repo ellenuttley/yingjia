@@ -44,6 +44,7 @@ def apply(root: tk.Misc, name: str) -> dict:
     style.configure("Pick.Accent.TButton", font=(FONT, 12, "bold"), padding=(14, 6))
     style.configure("Icon.TButton", font=(FONT, 11), padding=(6, 4), width=3)
     style.configure("Hint.TLabel", foreground=pal["muted"])
+    style.configure("Grip.TLabel", background=pal["bg"], foreground=pal["muted"], font=(FONT, 12))
     if sv_ttk is None:
         # Plain Tk has no Accent style; give the pick button some weight anyway.
         style.configure("Pick.Accent.TButton", foreground=pal["accent"])

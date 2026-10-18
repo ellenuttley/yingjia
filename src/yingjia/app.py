@@ -2,12 +2,18 @@
 from __future__ import annotations
 
 import os
+import sys
 import tkinter as tk
+import tkinter.font as tkfont
 from tkinter import filedialog, messagebox, simpledialog, ttk
 from typing import Optional
 
 from . import theme
 from .storage import AppData, Picker, Store, Student, parse_names, today
+
+MIN_SIZE = (300, 120)
+RESIZE_CURSOR = "size_nw_se" if sys.platform == "win32" else "bottom_right_corner"
+
 
 class Widget:
     """The small always-on-top window that shows the picked name."""
@@ -24,12 +30,13 @@ class Widget:
         root.title("赢家 Yingjia")
         root.overrideredirect(True)
         root.attributes("-topmost", True)
-        root.minsize(340, 140)
+        root.minsize(*MIN_SIZE)
 
         s = data.settings
-        x = s.widget_x if s.widget_x is not None else (root.winfo_screenwidth() - 440) // 2
+        w, h = max(s.widget_w, MIN_SIZE[0]), max(s.widget_h, MIN_SIZE[1])
+        x = s.widget_x if s.widget_x is not None else (root.winfo_screenwidth() - w) // 2
         y = s.widget_y if s.widget_y is not None else 10
-        root.geometry(f"440x160+{x}+{y}")
+        root.geometry(f"{w}x{h}+{x}+{y}")
 
         # A thin accent-coloured border keeps the widget visible over any slide.
         border = ttk.Frame(root, style="Border.TFrame", padding=2)
@@ -43,11 +50,13 @@ class Widget:
         self.menu_var = tk.StringVar()
         self.class_menu = ttk.Menubutton(top, textvariable=self.class_var)
         self.class_menu.pack(side="left")
-        self.count_label = ttk.Label(top, style="Widget.TLabel")
-        self.count_label.pack(side="right")
 
-        self.name_label = ttk.Label(body, text="Press Tab", style="Name.TLabel", anchor="center")
+        # The name grows and shrinks with the widget (see _fit_name).
+        self.name_font = tkfont.Font(family=theme.FONT, size=-40, weight="bold")
+        self.name_label = ttk.Label(body, text="Press Tab", style="Name.TLabel", anchor="center",
+                                    font=self.name_font)
         self.name_label.pack(fill="both", expand=True, pady=2)
+        self.name_label.bind("<Configure>", lambda e: self._fit_name())
 
         bar = ttk.Frame(body, style="Widget.TFrame")
         bar.pack(fill="x")
@@ -58,7 +67,14 @@ class Widget:
         self.lock_btn = self._small(bar, "🔓", self.toggle_lock, "Lock in place (Ctrl+L)")
         self.manage_btn = self._small(bar, "⚙", self.open_manager, "Manage classes")
 
-        for w in (root, border, body, top, self.name_label, self.count_label, bar):
+        # Drag the bottom-right corner to resize.
+        self.grip = ttk.Label(body, text="◢", style="Grip.TLabel", cursor=RESIZE_CURSOR)
+        self.grip.place(relx=1.0, rely=1.0, x=10, y=8, anchor="se")
+        self.grip.bind("<ButtonPress-1>", self._start_resize)
+        self.grip.bind("<B1-Motion>", self._on_resize)
+        self.grip.bind("<ButtonRelease-1>", self._end_resize)
+
+        for w in (root, border, body, top, self.name_label, bar):
             w.bind("<ButtonPress-1>", self._start_drag)
             w.bind("<B1-Motion>", self._on_drag)
             w.bind("<ButtonRelease-1>", self._end_drag)
@@ -103,7 +119,6 @@ class Widget:
         else:
             self._animate(name)
         self.store.save(self.data)
-        self.refresh_counts()
 
     def _animate(self, final: str, steps: int = 8):
         """A brief shuffle effect before landing on the picked name."""
@@ -114,9 +129,11 @@ class Widget:
         def step(i):
             if i < steps and len(pool) > 1:
                 self.name_label.config(text=rng.choice(pool), foreground=self.pal["muted"])
+                self._fit_name()
                 self.root.after(35 + i * 10, step, i + 1)
             else:
                 self.name_label.config(text=final, foreground=self.pal["fg"])
+                self._fit_name()
         step(0)
 
     def toggle_lock(self):
@@ -133,6 +150,10 @@ class Widget:
             else:
                 b.pack(side="right", padx=(6, 0), before=self.lock_btn)
         self.class_menu.state(["disabled"] if locked else ["!disabled"])
+        if locked:
+            self.grip.place_forget()
+        else:
+            self.grip.place(relx=1.0, rely=1.0, x=10, y=8, anchor="se")
         # When locked, the lock button only responds to Ctrl+L.
         self.lock_btn.state(["disabled"] if locked else ["!disabled"])
 
@@ -158,11 +179,45 @@ class Widget:
             s.widget_x, s.widget_y = self.root.winfo_x(), self.root.winfo_y()
             self.store.save(self.data)
 
+    def _start_resize(self, e):
+        self._resize = (e.x_root, e.y_root, self.root.winfo_width(), self.root.winfo_height())
+        return "break"
+
+    def _on_resize(self, e):
+        if self.data.settings.widget_locked:
+            return "break"
+        x0, y0, w0, h0 = self._resize
+        w = max(MIN_SIZE[0], w0 + e.x_root - x0)
+        h = max(MIN_SIZE[1], h0 + e.y_root - y0)
+        self.root.geometry(f"{w}x{h}")
+        return "break"
+
+    def _end_resize(self, e):
+        s = self.data.settings
+        s.widget_w, s.widget_h = self.root.winfo_width(), self.root.winfo_height()
+        self.store.save(self.data)
+        return "break"
+
+    def _fit_name(self):
+        """Size the name to fill the space it has, shrinking long names to fit."""
+        avail_w = self.name_label.winfo_width() - 8
+        avail_h = self.name_label.winfo_height()
+        if avail_w < 20 or avail_h < 20:
+            return
+        px = max(14, int(avail_h * 0.8))
+        text = self.name_label.cget("text") or " "
+        self.name_font.configure(size=-px)
+        width = self.name_font.measure(text)
+        if width > avail_w:
+            px = max(12, int(px * avail_w / width))
+            self.name_font.configure(size=-px)
+
     def select_class(self, class_id: str):
         self.data.current_class_id = class_id
         self.picker.last = None
         self.store.save(self.data)
         self.name_label.config(text="Press Tab", foreground=self.pal["fg"])
+        self._fit_name()
         self.refresh()
 
     def refresh(self):
@@ -177,16 +232,6 @@ class Widget:
         menu.add_separator()
         menu.add_command(label="Manage classes…", command=self.open_manager)
         self.class_menu.config(menu=menu)
-        self.name_label.config(font=(theme.FONT, self.data.settings.font_size, "bold"))
-        self.refresh_counts()
-
-    def refresh_counts(self):
-        c = self.data.current()
-        if not c:
-            self.count_label.config(text="")
-            return
-        here = len(self.data.present_students(c))
-        self.count_label.config(text=f"{here}/{len(c.students)} here")
 
     def open_manager(self):
         if self.manager and self.manager.win.winfo_exists():
@@ -279,7 +324,6 @@ class Manager:
         s = self.data.settings
         self.no_repeats = tk.BooleanVar(value=s.no_repeats)
         self.auto_reset = tk.BooleanVar(value=s.auto_reset_absences)
-        self.font_size = tk.IntVar(value=s.font_size)
         self.dark = tk.BooleanVar(value=s.theme == "dark")
         ttk.Checkbutton(bottom, text="Pick everyone once before repeating", variable=self.no_repeats,
                         command=self.save_settings).grid(row=0, column=0, sticky="w", **pad)
@@ -287,11 +331,6 @@ class Manager:
                         command=self.save_settings).grid(row=1, column=0, sticky="w", **pad)
         ttk.Checkbutton(bottom, text="Dark mode", variable=self.dark,
                         command=self.toggle_dark).grid(row=0, column=1, sticky="w", **pad)
-        size_row = ttk.Frame(bottom)
-        size_row.grid(row=1, column=1, sticky="w", **pad)
-        ttk.Label(size_row, text="Name size").pack(side="left")
-        ttk.Spinbox(size_row, from_=14, to=72, width=6, textvariable=self.font_size,
-                    command=self.save_settings).pack(side="left", padx=(8, 0))
         ttk.Button(left, text="Use this class ★", command=self.use_class).pack(fill="x", pady=(10, 2))
 
         self.reload_classes()
@@ -495,10 +534,6 @@ class Manager:
         s = self.data.settings
         s.no_repeats = self.no_repeats.get()
         s.auto_reset_absences = self.auto_reset.get()
-        try:
-            s.font_size = max(14, min(72, int(self.font_size.get())))
-        except (tk.TclError, ValueError):
-            pass
         self.save()
         self.show_students()
 

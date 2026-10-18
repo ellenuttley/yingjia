@@ -12,8 +12,9 @@ Dark mode: [screenshot-dark.png](screenshot-dark.png)
 ## What it does
 
 - **Floating widget** that stays on top of every window (slides, browser,
-  smart-board software). Shows the class name, how many students are here,
-  and the picked name in large text.
+  smart-board software). Shows the class name and the picked name in large
+  text. Drag the bottom-right corner to resize it; the name grows to fill
+  the space, and long names shrink to fit.
 - **Pick a name** with the **Tab** key (when the widget is focused; click it
   once) or the big yellow button, which works well on a smart board.
 - **Fair picking**: by default everyone is picked once before anyone is picked
@@ -26,8 +27,8 @@ Dark mode: [screenshot-dark.png](screenshot-dark.png)
   list, greyed out, and are never picked. By default absences clear
   automatically the next day, so nobody is forgotten. "Everyone's here"
   clears them all at once.
-- **Lock** with **Ctrl+L** (same as No Hands): the widget can't be moved and the
-  close and settings buttons are hidden. Press Ctrl+L again to unlock.
+- **Lock** with **Ctrl+L** (same as No Hands): the widget can't be moved or
+  resized and the close and settings buttons are hidden. Press Ctrl+L again to unlock.
 - Works with Chinese, English and accented names, mixed in the same list.
 - **Windows 11 look** with light and dark mode (Settings in the manager),
   using the Sun Valley theme. The theme is packed inside the .exe, so it
