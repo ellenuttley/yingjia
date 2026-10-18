@@ -395,9 +395,9 @@ class Manager:
         self.class_list.pack(fill="y", expand=True)
         self.class_list.bind("<<ListboxSelect>>", lambda e: self.show_students())
         self.class_list.bind("<Double-Button-1>", lambda e: self.use_class())
-        for text, cmd in (("New class…", self.new_class), ("Rename…", self.rename_class),
-                          ("Duplicate…", self.duplicate_class), ("Delete", self.delete_class),
-                          ("Import .txt…", self.import_txt), ("Export .txt…", self.export_txt)):
+        for text, cmd in (("New class", self.new_class), ("Rename", self.rename_class),
+                          ("Duplicate", self.duplicate_class), ("Delete", self.delete_class),
+                          ("Import .txt", self.import_txt), ("Export .txt", self.export_txt)):
             ttk.Button(left, text=text, command=cmd).pack(fill="x", pady=2)
 
         # Right: students in selected class
@@ -436,10 +436,14 @@ class Manager:
 
         btns = ttk.Frame(right)
         btns.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(6, 0))
-        for text, cmd in (("Paste many names…", self.paste_names), ("Rename…", self.rename_student),
+        for text, cmd in (("Paste many names", self.paste_names), ("Rename", self.rename_student),
                           ("Remove", self.remove_student), ("Everyone's here", self.all_present),
-                          ("Autopick…", self.open_autopick)):
-            ttk.Button(btns, text=text, command=cmd).pack(side="left", padx=(0, 6))
+                          ("Autopick", self.open_autopick)):
+            col = len(btns.grid_slaves())
+            # The buttons share out the spare space so they fill the whole row.
+            btns.columnconfigure(col, weight=1)
+            ttk.Button(btns, text=text, command=cmd).grid(row=0, column=col, sticky="ew",
+                                                         padx=(0 if col == 0 else 6, 0))
         self.autopick: Optional[AutoPick] = None
 
         # Bottom: settings

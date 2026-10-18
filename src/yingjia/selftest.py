@@ -291,7 +291,7 @@ class SelfTest:
 
     def autopick(self):
         w, m = self.widget, self.widget.manager
-        self.find(m.win, "TButton", "Autopick…").invoke()
+        self.find(m.win, "TButton", "Autopick").invoke()
         self.wait(0.2)
         a = m.autopick
         self.check(a is not None and a.win.winfo_exists(), "Autopick button opens its window")

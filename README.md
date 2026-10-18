@@ -18,7 +18,7 @@ Dark mode: [screenshot-dark.png](screenshot-dark.png)
 - **Pick a name** with the **Tab** key or the dice button, which works well
   on a smart board. Tab works whenever the widget or the class manager is
   the active window (except while typing in a text box).
-- **Autopick**: the "Autopick…" button in the class manager opens a small
+- **Autopick**: the "Autopick" button in the class manager opens a small
   window where you set the seconds and press Play to show a new name every
   few seconds. Pause keeps the countdown where it was; Stop resets it. Closing that window (or the class manager) always
   stops it, so it can't be left running by accident.
