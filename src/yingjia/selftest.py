@@ -123,6 +123,13 @@ class SelfTest:
         self.wait(0.05)
         widget.event_generate("<KeyPress>", keysym="Tab", when="now")
         self.wait(1.0)  # let the shuffle animation finish
+        self.wait_for_animation()
+
+    def wait_for_animation(self):
+        # A busy build machine can run the shuffle late; give it up to 5s more.
+        end = time.monotonic() + 5
+        while self.widget._anim_job is not None and time.monotonic() < end:
+            self.wait(0.05)
 
     # -- scenario ----------------------------------------------------------
     def run(self) -> List[str]:
