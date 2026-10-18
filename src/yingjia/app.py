@@ -829,6 +829,8 @@ class _Tooltip:
         widget.bind("<Leave>", self.hide)
 
     def show(self, _):
+        if self.tip:
+            return
         x = self.widget.winfo_rootx()
         y = self.widget.winfo_rooty() + self.widget.winfo_height() + 4
         self.tip = tk.Toplevel(self.widget)

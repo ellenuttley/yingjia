@@ -12,9 +12,11 @@ import os
 import shutil
 import sys
 import tempfile
+import threading
 import time
 import tkinter as tk
 import traceback
+from collections import Counter, deque
 from typing import Callable, List
 
 from . import app, guide
@@ -55,8 +57,42 @@ class SelfTest:
     def wait(self, seconds: float):
         end = time.monotonic() + seconds
         while time.monotonic() < end:
+            self.in_update = time.monotonic()
             self.root.update()
+            self.in_update = None
             time.sleep(0.01)
+
+    # -- hang detector -----------------------------------------------------
+    # One root.update() should take milliseconds. If it runs for 10s, log
+    # which of our functions keep being called inside it, so a hang on the
+    # Windows build machine says what caused it.
+    in_update = None
+    calls: deque = deque(maxlen=2000)
+
+    def _profile(self, frame, event, arg):
+        if event == "call":
+            code = frame.f_code
+            if "yingjia" in code.co_filename and "selftest" not in code.co_filename:
+                self.calls.append(code.co_name)
+
+    def start_hang_detector(self):
+        sys.setprofile(self._profile)
+        threading.setprofile(None)
+
+        def watch():
+            reported = False
+            while True:
+                time.sleep(1)
+                began = self.in_update
+                if began is not None and time.monotonic() - began > 10 and not reported:
+                    reported = True
+                    recent = list(self.calls)
+                    self.log("HANG: one update() has run for 10s. Most called recently: " +
+                             ", ".join(f"{n} x{c}" for n, c in Counter(recent[-1000:]).most_common(12)))
+                    self.log("HANG: last calls: " + " > ".join(recent[-40:]))
+                elif began is None:
+                    reported = False
+        threading.Thread(target=watch, daemon=True).start()
 
     def start(self) -> app.Widget:
         self.root = tk.Tk()
@@ -371,6 +407,7 @@ def main(argv=None) -> int:
     log = open(out + ".log", "w", encoding="utf-8") if out else None
     test.log_file = log
     faulthandler.dump_traceback_later(180, exit=True, file=log or sys.stderr)
+    test.start_hang_detector()
     try:
         failures = test.run()
     except Exception:
