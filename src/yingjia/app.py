@@ -9,8 +9,8 @@ import tkinter.font as tkfont
 from tkinter import filedialog, messagebox, simpledialog, ttk
 from typing import Optional
 
-from . import theme
-from .icons import ICONS
+from . import guide, theme
+from .icons import APP_ICON, ICONS
 from .storage import AppData, Picker, Store, Student, parse_names, today
 
 MIN_SIZE = (300, 150)
@@ -101,7 +101,9 @@ class Widget:
         # Take keyboard focus straight away so Tab works without clicking first.
         root.after(200, self.focus)
         if not data.classes:
+            # First run: open the class manager with the guide on top.
             root.after(300, self.open_manager)
+            root.after(600, lambda: show_help(self.manager.win, self.pal) if self.manager else None)
 
     def _small(self, parent, row, cmd, tip):
         b = ttk.Button(parent, command=cmd, style="Icon.TButton", cursor="hand2")
@@ -409,6 +411,9 @@ class Manager:
                         command=self.save_settings).grid(row=1, column=0, sticky="w", **pad)
         ttk.Checkbutton(bottom, text="Dark mode", variable=self.dark,
                         command=self.toggle_dark).grid(row=0, column=1, sticky="w", **pad)
+        bottom.columnconfigure(2, weight=1)
+        ttk.Button(bottom, text="?  Help / 使用说明", command=lambda: show_help(self.win, widget.pal)
+                   ).grid(row=0, column=2, rowspan=2, sticky="e", **pad)
         ttk.Button(left, text="Use this class ★", command=self.use_class).pack(fill="x", pady=(10, 2))
 
         self.reload_classes()
@@ -739,6 +744,38 @@ class AutoPick:
         self.win.destroy()
 
 
+def show_help(parent: tk.Misc, pal: dict) -> None:
+    """Show the teacher's guide (English and Chinese) in its own window."""
+    win = tk.Toplevel(parent)
+    win.title(guide.TITLE)
+    # Below the floating widget so it doesn't cover the guide.
+    x = max(0, parent.winfo_rootx() + 60)
+    win.geometry(f"660x560+{x}+{max(200, parent.winfo_rooty() + 40)}")
+    win.attributes("-topmost", True)
+    win.transient(parent)
+    ttk.Button(win, text="Close / 关闭", command=win.destroy).pack(side="bottom", pady=(0, 10))
+    frame = ttk.Frame(win, padding=10)
+    frame.pack(fill="both", expand=True)
+    text = tk.Text(frame, wrap="word", padx=12, pady=10, font=(theme.FONT, 11), spacing1=2)
+    theme.style_tk(text, pal)
+    sb = ttk.Scrollbar(frame, orient="vertical", command=text.yview)
+    text.configure(yscrollcommand=sb.set)
+    sb.pack(side="right", fill="y")
+    text.pack(side="left", fill="both", expand=True)
+    text.tag_configure("title", font=(theme.FONT, 15, "bold"), spacing3=10)
+    text.tag_configure("en", font=(theme.FONT, 11, "bold"))
+    text.tag_configure("zh", foreground=pal["muted"])
+    text.tag_configure("gap", font=(theme.FONT, 6))
+    text.tag_configure("note", foreground=pal["muted"])
+    text.insert("end", guide.TITLE + "\n", "title")
+    for i, (en, zh) in enumerate(guide.STEPS, 1):
+        text.insert("end", f"{i}.  {en}\n", "en")
+        text.insert("end", zh + "\n", "zh")
+        text.insert("end", "\n", "gap")
+    text.insert("end", "\n" + guide.NOTE + "\n", "note")
+    text.configure(state="disabled")
+
+
 def _read_text(path: str) -> str:
     # Teachers' existing lists may be saved by Notepad in UTF-8, UTF-16 or GBK.
     with open(path, "rb") as f:
@@ -783,6 +820,8 @@ def main():
     except Exception:
         pass
     root = tk.Tk()
+    # Window and taskbar icon (the exe's own icon is set when it's built).
+    root.iconphoto(True, tk.PhotoImage(master=root, data=APP_ICON))
     Widget(root, store, data)
     root.mainloop()
 

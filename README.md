@@ -35,6 +35,10 @@ Dark mode: [screenshot-dark.png](screenshot-dark.png)
 - **Lock** with **Ctrl+L** (same as No Hands): the widget can't be moved or
   resized and the close and settings buttons are hidden. Press Ctrl+L again to unlock.
 - Works with Chinese, English and accented names, mixed in the same list.
+- **Help / 使用说明**: a simple step-by-step guide in English and Chinese,
+  shown the first time the app opens and from the Help button in the class
+  manager. It is also saved as `How to use - 使用说明.txt` with the
+  installer and USB downloads (source: `src/yingjia/guide.py`).
 - **Windows 11 look** with light and dark mode (Settings in the manager),
   using the Sun Valley theme. The theme is packed inside the .exe, so it
   works offline.
@@ -67,7 +71,8 @@ Windows executables have to be built on Windows. The GitHub Actions workflow
 in `.github/workflows/build.yml` does it on every push:
 
 1. Runs the tests.
-2. Builds `Yingjia.exe` with PyInstaller for Windows 10/11 (Python 3.12)
+2. Builds `Yingjia-Setup.exe` (an installer that adds desktop and Start
+   menu icons, no administrator rights needed) and `Yingjia.exe` with PyInstaller for Windows 10/11 (Python 3.12)
    and `Yingjia-Windows7.exe` for Windows 7/8 (Python 3.8).
 3. Produces a USB (portable) zip for each, plus SHA-256 checksums.
 4. When the number in `VERSION` changes on `main` (e.g. `1.0.0` to

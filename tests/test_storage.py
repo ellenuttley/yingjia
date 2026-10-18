@@ -94,5 +94,14 @@ class StoreTests(unittest.TestCase):
         self.assertEqual(parse_names(" Ana \n\nben\nBen\nChen\r\n"), ["Ana", "ben", "Chen"])
 
 
+class GuideTests(unittest.TestCase):
+    def test_guide_has_both_languages(self):
+        from yingjia import guide
+        text = guide.as_text()
+        self.assertIn("Tab", text)
+        self.assertIn("使用说明", text)
+        self.assertEqual(len(guide.STEPS), text.count("\r\n\r\n") - 1)
+
+
 if __name__ == "__main__":
     unittest.main()

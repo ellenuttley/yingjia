@@ -33,18 +33,29 @@ jobs:
         run: |
           python -m pip install "pyinstaller<7" -r requirements.txt
           # --collect-data bundles the theme files inside the exe (no internet needed)
-          pyinstaller --noconfirm --onefile --windowed --name Yingjia --paths src --collect-data sv_ttk src/run.py
+          pyinstaller --noconfirm --onefile --windowed --name Yingjia --icon assets/yingjia.ico --paths src --collect-data sv_ttk src/run.py
       - name: Package
         shell: pwsh
         run: |
           $name = "Yingjia${{ matrix.suffix }}"
-          New-Item -ItemType Directory -Force out | Out-Null
+          $guide = "How to use - 使用说明.txt"
+          New-Item -ItemType Directory -Force out, guide | Out-Null
+          python src/yingjia/guide.py "guide/$guide"
           Copy-Item dist/Yingjia.exe "out/$name.exe"
           # Portable zip: data is kept next to the exe (USB stick friendly)
           New-Item -ItemType Directory -Force "portable/$name" | Out-Null
           Copy-Item dist/Yingjia.exe "portable/$name/Yingjia.exe"
+          Copy-Item "guide/$guide" "portable/$name/$guide"
           "Data is saved in the 'data' folder next to Yingjia.exe." | Out-File "portable/$name/portable.txt"
           Compress-Archive -Path "portable/$name" -DestinationPath "out/$name-USB.zip"
+      - name: Build installer (adds a desktop icon)
+        if: matrix.suffix == ''
+        shell: pwsh
+        run: |
+          # Inno Setup 6.5+ includes the Simplified Chinese wizard text.
+          choco install innosetup -y --no-progress
+          $version = (Get-Content VERSION -Raw).Trim()
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DAppVersion=$version" installer\yingjia.iss
       - uses: actions/upload-artifact@v4
         with:
           name: Yingjia${{ matrix.suffix }}
@@ -94,6 +105,7 @@ jobs:
           target_commitish: ${{ github.sha }}
           # Main download first, so it's at the top of the file list.
           files: |
+            out/Yingjia-Setup.exe
             out/Yingjia.exe
             out/Yingjia-USB.zip
             out/Yingjia-Windows7.exe
