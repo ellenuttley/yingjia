@@ -256,9 +256,13 @@ class Widget:
 
     def _keep_on_top(self):
         # Other programs (e.g. a full screen slideshow) can steal top-most;
-        # reassert it every couple of seconds.
+        # reassert it every couple of seconds. While the class manager is open,
+        # don't raise the widget past it: on Windows, raising it between the
+        # manager and its own small windows (Autopick, Paste names) can make
+        # Windows and Tk restack the windows forever and freeze the app.
         self.root.attributes("-topmost", True)
-        self.root.lift()
+        if not (self.manager and self.manager.win.winfo_exists()):
+            self.root.lift()
         self._top_job = self.root.after(2000, self._keep_on_top)
 
     def _start_drag(self, e):
@@ -575,7 +579,6 @@ class Manager:
             return
         dlg = tk.Toplevel(self.win)
         dlg.title("Paste names")
-        dlg.attributes("-topmost", True)
         dlg.transient(self.win)
         ttk.Label(dlg, text="Paste or type names, one per line:", padding=8).pack(anchor="w")
         txt = tk.Text(dlg, width=40, height=16, font=(theme.FONT, 11))
@@ -683,7 +686,6 @@ class AutoPick:
         self.win = tk.Toplevel(manager.win)
         self.win.title("Autopick")
         self.win.resizable(False, False)
-        self.win.attributes("-topmost", True)
         self.win.transient(manager.win)
         self.win.protocol("WM_DELETE_WINDOW", self.close)
         self.win.bind("<Escape>", lambda e: self.close())
@@ -772,7 +774,6 @@ def show_help(parent: tk.Misc, pal: dict) -> None:
     # Below the floating widget so it doesn't cover the guide.
     x = max(0, parent.winfo_rootx() + 60)
     win.geometry(f"660x560+{x}+{max(200, parent.winfo_rooty() + 40)}")
-    win.attributes("-topmost", True)
     win.transient(parent)
     ttk.Button(win, text="Close / 关闭", command=win.destroy).pack(side="bottom", pady=(0, 10))
     tabs = ttk.Notebook(win, padding=8)
