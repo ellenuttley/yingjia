@@ -21,7 +21,7 @@ jobs:
             suffix: ""
           # Windows 7/8 (last Python that supports them)
           - python: "3.8"
-            suffix: "-win7"
+            suffix: "-Windows7"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -44,8 +44,7 @@ jobs:
           New-Item -ItemType Directory -Force "portable/$name" | Out-Null
           Copy-Item dist/Yingjia.exe "portable/$name/Yingjia.exe"
           "Data is saved in the 'data' folder next to Yingjia.exe." | Out-File "portable/$name/portable.txt"
-          Compress-Archive -Path "portable/$name" -DestinationPath "out/$name-portable.zip"
-          Get-ChildItem out -Exclude *.sha256 | ForEach-Object { (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower() + "  " + $_.Name } | Out-File -Encoding ascii "out/$name.sha256"
+          Compress-Archive -Path "portable/$name" -DestinationPath "out/$name-USB.zip"
       - uses: actions/upload-artifact@v4
         with:
           name: Yingjia${{ matrix.suffix }}
@@ -79,17 +78,28 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: out
           merge-multiple: true
+      - name: Write checksums and download guide
+        run: |
+          (cd out && sha256sum * > checksums.txt)
+          sed "s/{{TAG}}/${{ needs.version.outputs.tag }}/g" .github/release-notes.md > notes.md
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.version.outputs.tag }}
           name: 赢家 Yingjia ${{ needs.version.outputs.tag }}
           target_commitish: ${{ github.sha }}
-          files: out/*
-          generate_release_notes: true
+          # Main download first, so it's at the top of the file list.
+          files: |
+            out/Yingjia.exe
+            out/Yingjia-USB.zip
+            out/Yingjia-Windows7.exe
+            out/Yingjia-Windows7-USB.zip
+            out/checksums.txt
+          body_path: notes.md
 
   publish:
     # Optional Hong Kong S3 mirror for China: runs with each new release, once the AWS settings below exist.
@@ -110,6 +120,7 @@ jobs:
       - name: Upload to S3
         run: |
           VERSION="${{ needs.version.outputs.tag }}"
+          (cd out && sha256sum * > checksums.txt)
           aws s3 cp out/ "s3://${{ vars.S3_BUCKET }}/releases/${VERSION}/" --recursive
           aws s3 cp out/ "s3://${{ vars.S3_BUCKET }}/latest/" --recursive \
             --cache-control "max-age=300"
