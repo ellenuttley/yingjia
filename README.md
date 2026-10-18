@@ -64,7 +64,8 @@ in `.github/workflows/build.yml` does it on every push:
 2. Builds `Yingjia.exe` with PyInstaller for Windows 10/11 (Python 3.12)
    and `Yingjia-win7.exe` for Windows 7/8 (Python 3.8).
 3. Produces a portable zip and SHA-256 checksums for each.
-4. On a version tag (`v1.0.0`), publishes a GitHub Release with the .exe
+4. When the number in `VERSION` changes on `main` (e.g. `1.0.0` to
+   `1.0.1`), tags that version and publishes a GitHub Release with the .exe
    files as download links.
 5. Optionally, also uploads everything to S3 with a bilingual
    download page, using GitHub OIDC (no AWS keys stored in GitHub).

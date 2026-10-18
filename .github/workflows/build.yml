@@ -3,7 +3,6 @@ name: Build and publish
 on:
   push:
     branches: [main]
-    tags: ["v*"]
   pull_request:
   workflow_dispatch:
 
@@ -52,10 +51,30 @@ jobs:
           name: Yingjia${{ matrix.suffix }}
           path: out/*
 
+  version:
+    # Bump the number in the VERSION file and push to main to publish a new release.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.v.outputs.tag }}
+      new: ${{ steps.v.outputs.new }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        run: |
+          TAG="v$(tr -d '[:space:]' < VERSION)"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null; then
+            echo "new=false" >> "$GITHUB_OUTPUT"
+            echo "$TAG already released; skipping"
+          else
+            echo "new=true" >> "$GITHUB_OUTPUT"
+          fi
+
   release:
-    # Tag a version (e.g. v1.0.0) to get a download page on GitHub Releases.
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    # Creates the tag and a GitHub Release page with the .exe downloads.
+    if: needs.version.outputs.new == 'true'
+    needs: [build, version]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -66,13 +85,16 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ needs.version.outputs.tag }}
+          name: 赢家 Yingjia ${{ needs.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           files: out/*
           generate_release_notes: true
 
   publish:
-    # Optional Hong Kong S3 mirror for China: only on version tags, and only once the AWS settings below exist.
-    if: startsWith(github.ref, 'refs/tags/v') && vars.AWS_ROLE_ARN != ''
-    needs: build
+    # Optional Hong Kong S3 mirror for China: runs with each new release, once the AWS settings below exist.
+    if: needs.version.outputs.new == 'true' && vars.AWS_ROLE_ARN != ''
+    needs: [build, version]
     runs-on: ubuntu-latest
     environment: release
     steps:
@@ -87,7 +109,7 @@ jobs:
           aws-region: ${{ vars.AWS_REGION }}
       - name: Upload to S3
         run: |
-          VERSION="${GITHUB_REF_NAME}"
+          VERSION="${{ needs.version.outputs.tag }}"
           aws s3 cp out/ "s3://${{ vars.S3_BUCKET }}/releases/${VERSION}/" --recursive
           aws s3 cp out/ "s3://${{ vars.S3_BUCKET }}/latest/" --recursive \
             --cache-control "max-age=300"
