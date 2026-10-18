@@ -107,9 +107,10 @@ class Widget:
         self._keep_on_top()
         # Take keyboard focus straight away so Tab works without clicking first.
         root.after(200, self.focus)
+        # Open the class manager alongside the widget, ready to choose a class.
+        root.after(300, self.open_manager)
         if not data.classes:
-            # First run: open the class manager with the guide on top.
-            root.after(300, self.open_manager)
+            # First run: show the guide on top.
             root.after(600, lambda: show_help(self.manager.win, self.pal) if self.manager else None)
 
     def _small(self, parent, row, cmd, tip):
@@ -259,7 +260,7 @@ class Widget:
         # Other programs (e.g. a full screen slideshow) can steal top-most;
         # reassert it every couple of seconds. While the class manager is open,
         # don't raise the widget past it: on Windows, raising it between the
-        # manager and its own small windows (Autopick, Paste names) can make
+        # manager and its own small windows (Autopick, Paste many names) can make
         # Windows and Tk restack the windows forever and freeze the app.
         self.root.attributes("-topmost", True)
         if not (self.manager and self.manager.win.winfo_exists()):
@@ -372,8 +373,8 @@ class Manager:
         self.data = widget.data
         self.win = tk.Toplevel(widget.root)
         self.win.title("赢家 Yingjia – Manage classes")
-        self.win.geometry("860x640")
-        self.win.minsize(760, 600)
+        self.win.geometry("940x640")
+        self.win.minsize(900, 600)
         self.win.attributes("-topmost", True)
         self.win.protocol("WM_DELETE_WINDOW", self.close)
         # Tab picks a name here too, except while typing in a text box.
@@ -435,7 +436,7 @@ class Manager:
 
         btns = ttk.Frame(right)
         btns.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(6, 0))
-        for text, cmd in (("Paste names…", self.paste_names), ("Rename…", self.rename_student),
+        for text, cmd in (("Paste many names…", self.paste_names), ("Rename…", self.rename_student),
                           ("Remove", self.remove_student), ("Everyone's here", self.all_present),
                           ("Autopick…", self.open_autopick)):
             ttk.Button(btns, text=text, command=cmd).pack(side="left", padx=(0, 6))
@@ -448,15 +449,16 @@ class Manager:
         self.no_repeats = tk.BooleanVar(value=s.no_repeats)
         self.auto_reset = tk.BooleanVar(value=s.auto_reset_absences)
         self.dark = tk.BooleanVar(value=s.theme == "dark")
+        # One row: the three settings, then Help at the far right.
         ttk.Checkbutton(bottom, text="Pick everyone once before repeating", variable=self.no_repeats,
                         command=self.save_settings).grid(row=0, column=0, sticky="w", **pad)
         ttk.Checkbutton(bottom, text="Absences clear at the end of the day", variable=self.auto_reset,
-                        command=self.save_settings).grid(row=1, column=0, sticky="w", **pad)
+                        command=self.save_settings).grid(row=0, column=1, sticky="w", **pad)
         ttk.Checkbutton(bottom, text="Dark mode", variable=self.dark,
-                        command=self.toggle_dark).grid(row=0, column=1, sticky="w", **pad)
-        bottom.columnconfigure(2, weight=1)
-        ttk.Button(bottom, text="?  Help / 使用说明", command=lambda: show_help(self.win, widget.pal)
-                   ).grid(row=0, column=2, rowspan=2, sticky="e", **pad)
+                        command=self.toggle_dark).grid(row=0, column=2, sticky="w", **pad)
+        bottom.columnconfigure(3, weight=1)
+        ttk.Button(bottom, text="Help", command=lambda: show_help(self.win, widget.pal)
+                   ).grid(row=0, column=3, sticky="e", **pad)
         ttk.Button(left, text="Use this class ★", command=self.use_class).pack(fill="x", pady=(10, 2))
 
         self.reload_classes()
@@ -593,10 +595,10 @@ class Manager:
     def paste_names(self):
         c = self.selected_class()
         if not c:
-            messagebox.showinfo("Paste names", "Create or select a class first.", parent=self.win)
+            messagebox.showinfo("Paste many names", "Create or select a class first.", parent=self.win)
             return
         dlg = tk.Toplevel(self.win)
-        dlg.title("Paste names")
+        dlg.title("Paste many names")
         dlg.transient(self.win)
         ttk.Label(dlg, text="Paste or type names, one per line:", padding=8).pack(anchor="w")
         txt = tk.Text(dlg, width=40, height=16, font=(theme.FONT, 11))

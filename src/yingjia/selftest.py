@@ -175,7 +175,7 @@ class SelfTest:
 
         m.paste_names()
         self.wait(0.2)
-        dlg = [t for t in self.toplevels(m.win) if t.title() == "Paste names"][0]
+        dlg = [t for t in self.toplevels(m.win) if t.title() == "Paste many names"][0]
         self.find(dlg, "Text").insert("1.0", "Chen Wei\n\nDev\nAmelia\nElla\n")
         self.find(dlg, "TButton", "Add names").invoke()
         self.wait(0.1)
@@ -367,7 +367,7 @@ class SelfTest:
         m.dark.set(False)
         m.toggle_dark()
         self.check(w.data.settings.theme == "light", "dark mode switches off")
-        self.find(m.win, "TButton", "?  Help / 使用说明").invoke()
+        self.find(m.win, "TButton", "Help").invoke()
         self.wait(0.3)
         helps = [t for t in self.toplevels(m.win) if "使用说明" in t.title()]
         self.check(len(helps) == 1, "Help button opens the guide")
@@ -394,7 +394,9 @@ class SelfTest:
         got = [(c.name, [s.name for s in c.students]) for c in w.data.classes]
         self.check(got == expected, "class lists are still there after closing and reopening")
         self.check((w.data.settings.widget_w, w.data.settings.widget_h) == size, "widget size is remembered")
-        self.check(w.manager is None, "Manage classes doesn't pop up once classes exist")
+        self.check(w.manager is not None and w.manager.win.winfo_exists(), "Manage classes opens with the widget")
+        self.check(not [t for t in self.toplevels(w.manager.win) if "使用说明" in t.title()],
+                   "the Help guide only pops up on the first run")
         self.tab(w.name_label)
         self.check(w.picker.last is not None, "picking works after reopening")
 

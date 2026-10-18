@@ -11,8 +11,8 @@
 You can ignore `checksums.txt` and the "Source code" files. They're for IT staff and developers.
 
 ### How to use it 使用说明
-Click the **? Help / 使用说明** button in "Manage classes". It opens by itself the first time.
-在"Manage classes"中点击 **? Help / 使用说明** 按钮。第一次打开时会自动显示。
+Click the **Help** button in "Manage classes". It opens by itself the first time.
+在"Manage classes"中点击 **Help** 按钮。第一次打开时会自动显示。
 
 ### First time you open it
 Windows may say **"Windows protected your PC"** because the app is new (this also happens for the installer). Click **More info**, then **Run anyway**. 首次运行如出现"Windows 已保护你的电脑"，请点击"更多信息"，然后点"仍要运行"。
