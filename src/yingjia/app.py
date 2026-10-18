@@ -13,7 +13,7 @@ from . import theme
 from .icons import ICONS
 from .storage import AppData, Picker, Store, Student, parse_names, today
 
-MIN_SIZE = (300, 120)
+MIN_SIZE = (300, 150)
 RESIZE_CURSOR = "size_nw_se" if sys.platform == "win32" else "bottom_right_corner"
 
 
@@ -43,7 +43,7 @@ class Widget:
         # A thin accent-coloured border keeps the widget visible over any slide.
         border = ttk.Frame(root, style="Border.TFrame", padding=2)
         border.pack(fill="both", expand=True)
-        body = ttk.Frame(border, style="Widget.TFrame", padding=(12, 8, 12, 10))
+        body = ttk.Frame(border, style="Widget.TFrame", padding=(8, 8, 16, 14))
         body.pack(fill="both", expand=True)
 
         self._auto_job = None
@@ -57,21 +57,28 @@ class Widget:
         self.name_font = tkfont.Font(family=theme.FONT, size=-40, weight="bold")
         self.name_label = ttk.Label(body, text="Press Tab", style="Name.TLabel", anchor="center",
                                     font=self.name_font)
-        self.name_label.pack(fill="both", expand=True, pady=2)
         self.name_label.bind("<Configure>", lambda e: self._fit_name())
 
-        bar = ttk.Frame(body, style="Widget.TFrame")
-        bar.pack(fill="x")
-        self.pick_btn = ttk.Button(bar, command=self.pick, style="Pick.Accent.TButton", cursor="hand2")
-        self.pick_btn.pack(side="left")
+        # Layout: full-height dice on the left, the name in the middle, and
+        # close / settings / lock stacked down the right-hand side.
+        body.columnconfigure(1, weight=1)
+        body.rowconfigure(0, weight=1)
+        self.pick_btn = ttk.Button(body, command=self.pick, style="Pick.Accent.TButton", cursor="hand2")
+        self.pick_btn.grid(row=0, column=0, sticky="ns")
         _Tooltip(self.pick_btn, "Pick a name (Tab)")
-        self.close_btn = self._small(bar, self.quit, "Close")
-        self.lock_btn = self._small(bar, self.toggle_lock, "Lock in place (Ctrl+L)")
-        self.manage_btn = self._small(bar, self.open_manager, "Manage classes")
+        self.name_label.grid(row=0, column=1, sticky="nsew", padx=8)
+        bar = ttk.Frame(body, style="Widget.TFrame")
+        bar.grid(row=0, column=2, sticky="ns")
+        for row in range(3):
+            bar.rowconfigure(row, weight=1)
+        self.close_btn = self._small(bar, 0, self.quit, "Close")
+        self.manage_btn = self._small(bar, 1, self.open_manager, "Manage classes")
+        # Clicking can lock; only Ctrl+L unlocks, so pupils can't undo it.
+        self.lock_btn = self._small(bar, 2, self._lock_clicked, "Lock in place (Ctrl+L)")
 
         # Drag the bottom-right corner to resize.
         self.grip = ttk.Label(body, text="◢", style="Grip.TLabel", cursor=RESIZE_CURSOR)
-        self.grip.place(relx=1.0, rely=1.0, x=10, y=8, anchor="se")
+        self.grip.place(relx=1.0, rely=1.0, x=14, y=12, anchor="se")
         self.grip.bind("<ButtonPress-1>", self._start_resize)
         self.grip.bind("<B1-Motion>", self._on_resize)
         self.grip.bind("<ButtonRelease-1>", self._end_resize)
@@ -96,9 +103,9 @@ class Widget:
         if not data.classes:
             root.after(300, self.open_manager)
 
-    def _small(self, parent, cmd, tip):
+    def _small(self, parent, row, cmd, tip):
         b = ttk.Button(parent, command=cmd, style="Icon.TButton", cursor="hand2")
-        b.pack(side="right", padx=(6, 0))
+        b.grid(row=row, column=0, sticky="n" if row == 0 else "s" if row == 2 else "")
         _Tooltip(b, tip)
         return b
 
@@ -209,6 +216,10 @@ class Widget:
                 self._fit_name()
         step(0)
 
+    def _lock_clicked(self):
+        if not self.data.settings.widget_locked:
+            self.toggle_lock()
+
     def toggle_lock(self):
         self.data.settings.widget_locked = not self.data.settings.widget_locked
         self._apply_lock()
@@ -219,15 +230,13 @@ class Widget:
         self.lock_btn.config(image=self._icon("lock" if locked else "unlock"))
         for b in (self.close_btn, self.manage_btn):
             if locked:
-                b.pack_forget()
+                b.grid_remove()
             else:
-                b.pack(side="right", padx=(6, 0), before=self.lock_btn)
+                b.grid()
         if locked:
             self.grip.place_forget()
         else:
-            self.grip.place(relx=1.0, rely=1.0, x=10, y=8, anchor="se")
-        # When locked, the lock button only responds to Ctrl+L.
-        self.lock_btn.state(["disabled"] if locked else ["!disabled"])
+            self.grip.place(relx=1.0, rely=1.0, x=14, y=12, anchor="se")
 
     def _keep_on_top(self):
         # Other programs (e.g. a full screen slideshow) can steal top-most;
