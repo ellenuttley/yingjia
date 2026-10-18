@@ -57,9 +57,13 @@ class Widget:
 
         # The name grows and shrinks with the widget (see _fit_name).
         self.name_font = tkfont.Font(family=theme.FONT, size=-40, weight="bold")
-        self.name_label = ttk.Label(body, text="Press Tab", style="Name.TLabel", anchor="center",
+        # The label sits in a fixed box (place, not grid) so changing the font
+        # size can never change the layout and set off another resize.
+        self.name_box = ttk.Frame(body, style="Widget.TFrame", width=1, height=1)
+        self.name_label = ttk.Label(self.name_box, text="Press Tab", style="Name.TLabel", anchor="center",
                                     font=self.name_font)
-        self.name_label.bind("<Configure>", lambda e: self._fit_name())
+        self.name_label.place(relx=0, rely=0, relwidth=1, relheight=1)
+        self.name_box.bind("<Configure>", lambda e: self._fit_name())
 
         # Layout: full-height dice on the left, the name in the middle, and
         # close / settings / lock stacked down the right-hand side.
@@ -68,7 +72,7 @@ class Widget:
         self.pick_btn = ttk.Button(body, command=self.pick, style="Pick.Accent.TButton", cursor="hand2")
         self.pick_btn.grid(row=0, column=0, sticky="ns")
         _Tooltip(self.pick_btn, "Pick a name (Tab)")
-        self.name_label.grid(row=0, column=1, sticky="nsew", padx=8)
+        self.name_box.grid(row=0, column=1, sticky="nsew", padx=8)
         bar = ttk.Frame(body, style="Widget.TFrame")
         bar.grid(row=0, column=2, sticky="ns")
         for row in range(3):
@@ -85,7 +89,7 @@ class Widget:
         self.grip.bind("<B1-Motion>", self._on_resize)
         self.grip.bind("<ButtonRelease-1>", self._end_resize)
 
-        for w in (root, border, body, self.name_label, bar):
+        for w in (root, border, body, self.name_box, self.name_label, bar):
             w.bind("<ButtonPress-1>", self._start_drag)
             w.bind("<B1-Motion>", self._on_drag)
             w.bind("<ButtonRelease-1>", self._end_drag)
@@ -296,8 +300,8 @@ class Widget:
 
     def _fit_name(self):
         """Size the name to fill the space it has, shrinking long names to fit."""
-        avail_w = self.name_label.winfo_width() - 8
-        avail_h = self.name_label.winfo_height()
+        avail_w = self.name_box.winfo_width() - 8
+        avail_h = self.name_box.winfo_height()
         if avail_w < 20 or avail_h < 20:
             return
         px = max(14, int(avail_h * 0.8))

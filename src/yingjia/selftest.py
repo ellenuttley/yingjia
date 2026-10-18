@@ -92,7 +92,7 @@ class SelfTest:
     def run(self) -> List[str]:
         steps: List[Callable[[], None]] = [
             self.first_run, self.classes_and_students, self.picking, self.absences,
-            self.import_export, self.autopick, self.lock_and_resize, self.themes_and_help,
+            self.import_export, self.no_resize_loop, self.autopick, self.lock_and_resize, self.themes_and_help,
             self.reopen_keeps_everything,
         ]
         for step in steps:
@@ -240,6 +240,18 @@ class SelfTest:
         m.class_list.selection_clear(0, "end")
         m.class_list.selection_set(0)
         m.show_students()
+
+    def no_resize_loop(self):
+        # Changing the name's font size must not trigger another resize forever
+        # (this hung on Windows once).
+        w = self.widget
+        calls = []
+        original = w._fit_name
+        w._fit_name = lambda: (calls.append(1), original())
+        w.pick()
+        self.wait(1.0)
+        w._fit_name = original
+        self.check(len(calls) < 40, f"no endless resizing after a pick ({len(calls)} refits in 1s)")
 
     def autopick(self):
         w, m = self.widget, self.widget.manager
